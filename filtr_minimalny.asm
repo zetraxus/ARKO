@@ -3,104 +3,56 @@
 input: .asciiz "example_input.bmp"
 output: .asciiz "example_output.bmp"
 .align 2 
-header: .space 4
-.align 2 
-fileSize: .space 4
-.align 2 
-offset: .space 4
-.align 2 
-width: .space 4
-.align 2 
-height: .space 4
+header: .space 54
 
 # komunikaty 
 message_1: .asciiz "blad otwierania pliku"
 message_2: .asciiz "poprawnie zakonczono program"
 
-# $s0 fileSize
-# $s1 offset
-# $s2 width
-# $s3 height
+# $s6 deskryptor output
+# $s7 deskryptor input
 
 .text
 ######################################################################################################
 openingFile:
-# otwieranie pliku "example"
+# otwieranie pliku "example_input.bmp"
 la $a0, input
 li $a1, 0
 li $a2, 0
 li $v0, 13
 syscall
 
-move $t9, $v0 # przechowywanie deskryptora, v0 dalej potrzebne do kolejnych wywolan systemowych
+move $s7, $v0 # przechowywanie deskryptora, potrzebne do kolejnych wywolan systemowych
 bltz $v0, fileException # ujemna wartosc v0 oznacza blad otwierania pliku
 
-# 2 bajty pierwsze w naglowku - identyfikator pliku ?
-move $a0, $t9
+# otwieranie pliku "example_output.bmp"
+la $a0, output
+li $a1, 1
+li $a2, 0
+li $v0, 13
+syscall
+
+move $s6, $v0 # przechowywanie deskryptora, potrzebne do kolejnych wywolan systemowych
+bltz $v0, fileException # ujemna wartosc v0 oznacza blad otwierania pliku
+
+# pobranie calego naglowka
+move $a0, $s7
 la $a1, header
-li $a2, 2
+li $a2, 54
 li $v0, 14
 syscall
 
-# 4 bajty na rozmiar
-move $a0, $t9
-la $a1, fileSize
-li $a2, 4
-li $v0, 14
-syscall
-
-# zapisanie rozmiaru plliku
-lw $s0, fileSize
-
-# wczytanie 4 zaarezerwowanych bajtow
-move $a0, $t9
-li $v0, 14
+# przepisanie naglowka- bedzie taki sam w output jak w input
+move $a0, $s6
 la $a1, header
-li $a2, 4
+li $a2, 54
+li $v0, 15
 syscall
-
-# wczytanie 4 bajtowego offsetu
-move $a0, $t9
-la $a1, offset
-li $a2, 4
-li $v0, 14
-syscall
-
-# zapisanie offsetu
-lw $s1, offset
-
-# 4 bajty naglowka informacyjnego na temat jego wielkosci, interesuje nas i tak tylko kolejne po nim 8 bitow wiec nie potrzebujemy wartosci naglowka
-move $a0, $t9
-la $a1, header
-li $a2, 4
-li $v0, 14
-syscall
-
-# wczytanie 4 bajtowej informacji o szerokosci obrazka
-move $a0, $t9
-la $a1, width
-li $a2, 4
-li $v0, 14
-syscall
-
-# zapisanie szerokosci
-lw $s2, width
-
-# wczytanie 4 bajtowej informacji o wysokosci obrazka
-move $a0, $t9
-la $a1, height
-li $a2, 4
-li $v0, 14
-syscall
-
-# zapisanie wysokosci
-lw $s3, height
-
 ######################################################################################################
 
 
 #program
-j happy_end
+j successful
 
 ######################################################################################################
 fileException:
@@ -110,16 +62,23 @@ li $v0, 4
 syscall
 j exit
 ######################################################################################################
-
-happy_end:
+successful:
 # komunikat poprawnego wykonego przebiegu zadania
 la $a0, message_2
 li $v0, 4
 syscall
-j exit
-
+j closeFiles
 ######################################################################################################
+closeFiles:
+li $v0, 16
+move $a0, $s7
+syscall
 
+li $v0, 16
+move $a0, $s6
+syscall
+j exit
+######################################################################################################
 exit:
 li $v0, 10
 syscall
